@@ -281,6 +281,55 @@ fn test_object_map_empty_lookup() {
 }
 
 #[test]
+fn test_object_map_queue_crud() {
+    bump_rlimit_mlock();
+
+    let obj = get_test_object("cgroup-fw.bpf.o");
+    let data_flow = obj.map("data_flow").expect("failed to find map");
+
+    let key: [u8; 0] = [];
+    let value1: Vec<u8> = std::iter::successors(Some(0), |&n| Some(n + 1))
+        .take(16)
+        .collect();
+    let value2: Vec<u8> = std::iter::successors(Some(16), |&n| Some(n + 1))
+        .take(16)
+        .collect();
+
+    data_flow
+        .update(&key, &value1, MapFlags::ANY)
+        .expect("failed to update");
+    data_flow
+        .update(&key, &value2, MapFlags::ANY)
+        .expect("failed to update");
+
+    let mut val = data_flow
+        .lookup(&key, MapFlags::ANY)
+        .expect("failed to pop from queue")
+        .expect("failed to retrieve value");
+    assert_eq!(val.len(), 16);
+    assert_eq!(&val, &value1);
+
+    val = data_flow
+        .lookup_and_delete(&key)
+        .expect("failed to pop from queue")
+        .expect("failed to retrieve value");
+    assert_eq!(val.len(), 16);
+    assert_eq!(&val, &value1);
+
+    val = data_flow
+        .lookup_and_delete(&key)
+        .expect("failed to pop from queue")
+        .expect("failed to retrieve value");
+    assert_eq!(val.len(), 16);
+    assert_eq!(&val, &value2);
+
+    assert!(data_flow
+        .lookup_and_delete(&key)
+        .expect("failed to pop from queue")
+        .is_none());
+}
+
+#[test]
 fn test_object_map_mutation() {
     bump_rlimit_mlock();
 

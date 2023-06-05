@@ -398,10 +398,18 @@ impl Map {
 
         let mut out: Vec<u8> = Vec::with_capacity(out_size);
 
+        let mut map_key = key.as_ptr() as *const c_void;
+        if self.key_size() == 0
+            && (matches!(self.map_type(), MapType::Queue)
+                || matches!(self.map_type(), MapType::Stack))
+        {
+            map_key = std::ptr::null();
+        }
+
         let ret = unsafe {
             libbpf_sys::bpf_map_lookup_elem_flags(
                 self.fd,
-                key.as_ptr() as *const c_void,
+                map_key,
                 out.as_mut_ptr() as *mut c_void,
                 flags.bits,
             )
@@ -456,10 +464,18 @@ impl Map {
 
         let mut out: Vec<u8> = Vec::with_capacity(self.value_size() as usize);
 
+        let mut map_key = key.as_ptr() as *const c_void;
+        if self.key_size() == 0
+            && (matches!(self.map_type(), MapType::Queue)
+                || matches!(self.map_type(), MapType::Stack))
+        {
+            map_key = std::ptr::null();
+        }
+
         let ret = unsafe {
             libbpf_sys::bpf_map_lookup_and_delete_elem(
                 self.fd,
-                key.as_ptr() as *const c_void,
+                map_key,
                 out.as_mut_ptr() as *mut c_void,
             )
         };
@@ -562,10 +578,18 @@ impl Map {
             )));
         };
 
+        let mut map_key = key.as_ptr() as *const c_void;
+        if self.key_size() == 0
+            && (matches!(self.map_type(), MapType::Queue)
+                || matches!(self.map_type(), MapType::Stack))
+        {
+            map_key = std::ptr::null();
+        }
+
         let ret = unsafe {
             libbpf_sys::bpf_map_update_elem(
                 self.fd,
-                key.as_ptr() as *const c_void,
+                map_key,
                 value.as_ptr() as *const c_void,
                 flags.bits,
             )
