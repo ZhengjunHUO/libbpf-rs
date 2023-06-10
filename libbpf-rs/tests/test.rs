@@ -282,7 +282,7 @@ fn test_object_map_empty_lookup() {
 
 /// Test CRUD operations on map of type queue and stack
 #[test]
-fn test_object_map_queue_crud() {
+fn test_sudo_object_map_queue_stack_crud() {
     bump_rlimit_mlock();
 
     let obj = get_test_object("tracepoint.bpf.o");
