@@ -386,6 +386,16 @@ impl Map {
         }
     }
 
+    /// Apply a key check and return a null pointer in case of dealing with queue/stack map,
+    /// before passing the key to the bpf functions who support the map of type queue/stack.
+    fn map_key(&self, key: &[u8]) -> *const c_void {
+        if self.key_size() == 0 && matches!(self.map_type(), MapType::Queue | MapType::Stack) {
+            return ptr::null();
+        }
+
+        key.as_ptr() as *const c_void
+    }
+
     /// Internal function to return a value from a map into a buffer of the given size.
     fn lookup_raw(&self, key: &[u8], flags: MapFlags, out_size: usize) -> Result<Option<Vec<u8>>> {
         if key.len() != self.key_size() as usize {
@@ -398,18 +408,10 @@ impl Map {
 
         let mut out: Vec<u8> = Vec::with_capacity(out_size);
 
-        let mut map_key = key.as_ptr() as *const c_void;
-        if self.key_size() == 0
-            && (matches!(self.map_type(), MapType::Queue)
-                || matches!(self.map_type(), MapType::Stack))
-        {
-            map_key = std::ptr::null();
-        }
-
         let ret = unsafe {
             libbpf_sys::bpf_map_lookup_elem_flags(
                 self.fd,
-                map_key,
+                self.map_key(key),
                 out.as_mut_ptr() as *mut c_void,
                 flags.bits,
             )
@@ -464,18 +466,10 @@ impl Map {
 
         let mut out: Vec<u8> = Vec::with_capacity(self.value_size() as usize);
 
-        let mut map_key = key.as_ptr() as *const c_void;
-        if self.key_size() == 0
-            && (matches!(self.map_type(), MapType::Queue)
-                || matches!(self.map_type(), MapType::Stack))
-        {
-            map_key = std::ptr::null();
-        }
-
         let ret = unsafe {
             libbpf_sys::bpf_map_lookup_and_delete_elem(
                 self.fd,
-                map_key,
+                self.map_key(key),
                 out.as_mut_ptr() as *mut c_void,
             )
         };
@@ -578,18 +572,10 @@ impl Map {
             )));
         };
 
-        let mut map_key = key.as_ptr() as *const c_void;
-        if self.key_size() == 0
-            && (matches!(self.map_type(), MapType::Queue)
-                || matches!(self.map_type(), MapType::Stack))
-        {
-            map_key = std::ptr::null();
-        }
-
         let ret = unsafe {
             libbpf_sys::bpf_map_update_elem(
                 self.fd,
-                map_key,
+                self.map_key(key),
                 value.as_ptr() as *const c_void,
                 flags.bits,
             )
